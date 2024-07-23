@@ -54,16 +54,16 @@ class CheckpointingLayer(nn.Module):
 class MokiTransformer(nn.Module):
     def __init__(self, vocab_size, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward):
         super(MokiTransformer, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, d_model).to(device)
+        self.embedding = nn.Embedding(vocab_size, d_model)
         self.encoder_layers = nn.ModuleList([
-            CheckpointingLayer(nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward).to(device))
+            CheckpointingLayer(nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward))
             for _ in range(num_encoder_layers)
         ])
         self.decoder_layers = nn.ModuleList([
-            CheckpointingLayer(nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward).to(device))
+            CheckpointingLayer(nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward))
             for _ in range(num_decoder_layers)
         ])
-        self.fc_out = nn.Linear(d_model, vocab_size).to(device)
+        self.fc_out = nn.Linear(d_model, vocab_size)
         self.d_model = d_model
 
     def forward(self, src, tgt):
