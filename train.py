@@ -14,7 +14,7 @@ tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 tokenizer.pad_token = tokenizer.eos_token
 
 # Load the PersonaHub dataset
-persona_dataset = load_dataset("proj-persona/PersonaHub", "instruction")
+persona_dataset = load_dataset("proj-persona/PersonaHub", "persona")
 
 class PersonaDataset(Dataset):
     def __init__(self, dataset, tokenizer, max_length):
@@ -27,8 +27,7 @@ class PersonaDataset(Dataset):
 
     def __getitem__(self, idx):
         data_point = self.dataset[idx]
-        # Assuming the structure based on common Persona datasets
-        input_text = " ".join(data_point["history"]) + " " + data_point["utterances"][-1]['text']
+        input_text = data_point["input persona"] + " " + data_point["synthesized text"]
         inputs = self.tokenizer.encode(input_text, truncation=True, max_length=self.max_length, padding='max_length')
         return torch.tensor(inputs)
 
