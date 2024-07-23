@@ -16,7 +16,7 @@ tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 tokenizer.pad_token = tokenizer.eos_token
 
 # Load the PersonaHub dataset
-persona_dataset = load_dataset("proj-persona/PersonaHub","instruction")
+persona_dataset = load_dataset("proj-persona/PersonaHub", "instruction")
 
 class PersonaDataset(Dataset):
     def __init__(self, dataset, tokenizer, max_length):
@@ -46,10 +46,15 @@ dataloader = DataLoader(persona_dataset, batch_size=batch_size, shuffle=True)
 class MokiTransformer(nn.Module):
     def __init__(self, vocab_size, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward):
         super(MokiTransformer, self).__init__()
-        self.transformer = nn.Transformer(d_model=d_model, nhead=nhead,
-                                          num_encoder_layers=num_encoder_layers, num_decoder_layers=num_decoder_layers,
-                                          dim_feedforward=dim_feedforward, batch_first=True)
         self.embedding = nn.Embedding(vocab_size, d_model)
+        self.transformer_encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward),
+            num_layers=num_encoder_layers
+        )
+        self.transformer_decoder = nn.TransformerDecoder(
+            nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward),
+            num_layers=num_decoder_layers
+        )
         self.fc_out = nn.Linear(d_model, vocab_size)
         self.d_model = d_model
 
@@ -58,9 +63,10 @@ class MokiTransformer(nn.Module):
         tgt = self.embedding(tgt) * (self.d_model ** 0.5)
         # Apply gradient checkpointing to save memory
         segments = 4  # Number of segments for checkpointing
-        src = checkpoint_sequential(self.transformer.encoder.layers, segments, src)
-        tgt = checkpoint_sequential(self.transformer.decoder.layers, segments, tgt)
-        output = self.transformer(src, tgt)
+        src = checkpoint_sequential(self.transformer_encoder.layers, segments, src)
+        memory = src  # The output of the encoder is passed as memory to the decoder
+        tgt = checkpoint_sequential(self.transformer_decoder.layers, segments, tgt, memory)
+        output = self.transformer_decoder(tgt, memory)
         output = self.fc_out(output)
         return output
 
