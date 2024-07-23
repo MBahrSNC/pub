@@ -63,9 +63,9 @@ class MokiTransformer(nn.Module):
         tgt = self.embedding(tgt) * (self.d_model ** 0.5)
         # Apply gradient checkpointing to save memory
         segments = 4  # Number of segments for checkpointing
-        src = checkpoint_sequential([self.transformer_encoder], segments, src)
+        src = checkpoint_sequential(self.transformer_encoder.layers, segments, src)
         memory = src  # The output of the encoder is passed as memory to the decoder
-        tgt = checkpoint_sequential([self.transformer_decoder], segments, tgt, memory)
+        tgt = checkpoint_sequential(self.transformer_decoder.layers, segments, tgt, memory=memory)
         output = self.transformer_decoder(tgt, memory)
         output = self.fc_out(output)
         return output
