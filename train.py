@@ -14,7 +14,7 @@ tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 tokenizer.pad_token = tokenizer.eos_token
 
 # Load the PersonaHub dataset
-persona_dataset = load_dataset("proj-persona/PersonaHub", "persona")
+persona_dataset = load_dataset("proj-persona/PersonaHub", "instruction")
 
 class PersonaDataset(Dataset):
     def __init__(self, dataset, tokenizer, max_length):
