@@ -6,10 +6,10 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import GPT2Tokenizer
 from datasets import load_dataset
 from torch.cuda.amp import autocast, GradScaler
-from torch.utils.checkpoint import checkpoint_sequential
+from torch.utils.checkpoint import checkpoint
 
 # Device configuration
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'gpu')
 
 # Initialize tokenizer and set padding token
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
@@ -42,32 +42,42 @@ persona_data = persona_dataset['train']  # or use 'test', 'validation' based on 
 persona_dataset = PersonaDataset(persona_data, tokenizer, max_seq_length)
 dataloader = DataLoader(persona_dataset, batch_size=batch_size, shuffle=True)
 
+class CheckpointingLayer(nn.Module):
+    def __init__(self, module):
+        super(CheckpointingLayer, self).__init__()
+        self.module = module
+
+    def forward(self, *inputs):
+        return checkpoint(self.module, *inputs)
+
 # Define model, optimizer, etc. as previously discussed
 class MokiTransformer(nn.Module):
     def __init__(self, vocab_size, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward):
         super(MokiTransformer, self).__init__()
         self.embedding = nn.Embedding(vocab_size, d_model)
-        self.transformer_encoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward),
-            num_layers=num_encoder_layers
-        )
-        self.transformer_decoder = nn.TransformerDecoder(
-            nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward),
-            num_layers=num_decoder_layers
-        )
+        self.encoder_layers = nn.ModuleList([
+            CheckpointingLayer(nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward))
+            for _ in range(num_encoder_layers)
+        ])
+        self.decoder_layers = nn.ModuleList([
+            CheckpointingLayer(nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward))
+            for _ in range(num_decoder_layers)
+        ])
         self.fc_out = nn.Linear(d_model, vocab_size)
         self.d_model = d_model
 
     def forward(self, src, tgt):
         src = self.embedding(src) * (self.d_model ** 0.5)
         tgt = self.embedding(tgt) * (self.d_model ** 0.5)
-        # Apply gradient checkpointing to save memory
-        segments = 4  # Number of segments for checkpointing
-        src = checkpoint_sequential(self.transformer_encoder.layers, segments, src)
-        memory = src  # The output of the encoder is passed as memory to the decoder
-        tgt = checkpoint_sequential(self.transformer_decoder.layers, segments, tgt, memory=memory)
-        output = self.transformer_decoder(tgt, memory)
-        output = self.fc_out(output)
+
+        for layer in self.encoder_layers:
+            src = layer(src)
+
+        memory = src
+        for layer in self.decoder_layers:
+            tgt = layer(tgt, memory)
+
+        output = self.fc_out(tgt)
         return output
 
 # Create directory for moki
