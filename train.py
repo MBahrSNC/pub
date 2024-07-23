@@ -34,7 +34,7 @@ class PersonaDataset(Dataset):
         return torch.tensor(inputs)
 
 # Parameters
-max_seq_length = 50000  # Set sequence length to 50k tokens
+max_seq_length = 1024  # Temporarily set sequence length to 1k tokens for debugging
 batch_size = 1  # Batch size of 1
 
 # Create PersonaHub dataset
@@ -70,14 +70,19 @@ class MokiTransformer(nn.Module):
         src = self.embedding(src) * (self.d_model ** 0.5)
         tgt = self.embedding(tgt) * (self.d_model ** 0.5)
 
+        print(f"Embedding output shape: src={src.shape}, tgt={tgt.shape}")
+
         for layer in self.encoder_layers:
             src = layer(src)
+            print(f"Encoder layer output shape: {src.shape}")
 
         memory = src
         for layer in self.decoder_layers:
             tgt = layer(tgt, memory)
+            print(f"Decoder layer output shape: {tgt.shape}")
 
         output = self.fc_out(tgt)
+        print(f"Output shape: {output.shape}")
         return output
 
 # Create directory for moki
