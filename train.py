@@ -26,7 +26,7 @@ class PersonaDataset(Dataset):
 
     def __getitem__(self, idx):
         data_point = self.dataset[idx]
-        input_text = data_point["context"] + " " + data_point["response"]
+        input_text = data_point["input persona"] + " " + data_point["synthesized text"]
         inputs = self.tokenizer.encode(input_text, truncation=True, max_length=self.max_length, padding='max_length')
         return torch.tensor(inputs)
 
