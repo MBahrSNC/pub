@@ -16,7 +16,7 @@ tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 tokenizer.pad_token = tokenizer.eos_token
 
 # Load the PersonaHub dataset
-persona_dataset = load_dataset("proj-persona/PersonaHub", "instruction")
+persona_dataset = load_dataset("proj-persona/PersonaHub", "instructions")
 
 class PersonaDataset(Dataset):
     def __init__(self, dataset, tokenizer, max_length):
@@ -54,16 +54,16 @@ class CheckpointingLayer(nn.Module):
 class MokiTransformer(nn.Module):
     def __init__(self, vocab_size, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward):
         super(MokiTransformer, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, d_model)
+        self.embedding = nn.Embedding(vocab_size, d_model).to(device)
         self.encoder_layers = nn.ModuleList([
-            CheckpointingLayer(nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward))
+            CheckpointingLayer(nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward).to(device))
             for _ in range(num_encoder_layers)
         ])
         self.decoder_layers = nn.ModuleList([
-            CheckpointingLayer(nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward))
+            CheckpointingLayer(nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward).to(device))
             for _ in range(num_decoder_layers)
         ])
-        self.fc_out = nn.Linear(d_model, vocab_size)
+        self.fc_out = nn.Linear(d_model, vocab_size).to(device)
         self.d_model = d_model
 
     def forward(self, src, tgt):
