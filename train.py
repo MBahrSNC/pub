@@ -5,6 +5,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from transformers import GPT2Tokenizer
 from datasets import load_dataset
+from torch.cuda.amp import autocast, GradScaler
+from torch.utils.checkpoint import checkpoint_sequential
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -14,7 +16,7 @@ tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 tokenizer.pad_token = tokenizer.eos_token
 
 # Load the PersonaHub dataset
-persona_dataset = load_dataset("proj-persona/PersonaHub", "instruction")
+persona_dataset = load_dataset("proj-persona/PersonaHub")
 
 class PersonaDataset(Dataset):
     def __init__(self, dataset, tokenizer, max_length):
@@ -32,8 +34,8 @@ class PersonaDataset(Dataset):
         return torch.tensor(inputs)
 
 # Parameters
-max_seq_length = 128000  # Set sequence length to 128k tokens
-batch_size = 1  # Reduced batch size due to large sequence length
+max_seq_length = 50000  # Set sequence length to 50k tokens
+batch_size = 1  # Batch size of 1
 
 # Create PersonaHub dataset
 persona_data = persona_dataset['train']  # or use 'test', 'validation' based on your requirements
@@ -54,6 +56,10 @@ class MokiTransformer(nn.Module):
     def forward(self, src, tgt):
         src = self.embedding(src) * (self.d_model ** 0.5)
         tgt = self.embedding(tgt) * (self.d_model ** 0.5)
+        # Apply gradient checkpointing to save memory
+        segments = 4  # Number of segments for checkpointing
+        src = checkpoint_sequential(self.transformer.encoder.layers, segments, src)
+        tgt = checkpoint_sequential(self.transformer.decoder.layers, segments, tgt)
         output = self.transformer(src, tgt)
         output = self.fc_out(output)
         return output
@@ -63,13 +69,16 @@ os.makedirs("moki", exist_ok=True)
 
 # Example hyperparameters for a 1B parameter model
 vocab_size = len(tokenizer)
-d_model = 2048  # Increased model dimension for larger context handling
-nhead = 32  # Increased number of heads
-num_encoder_layers = 24
-num_decoder_layers = 24
-dim_feedforward = 8192  # Increased feedforward dimension
+d_model = 1024  # Reduced model dimension for larger context handling
+nhead = 16  # Reduced number of heads
+num_encoder_layers = 12  # Reduced number of layers
+num_decoder_layers = 12  # Reduced number of layers
+dim_feedforward = 4096  # Reduced feedforward dimension
 
 model = MokiTransformer(vocab_size, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward).to(device)
+
+# Mixed precision training setup
+scaler = GradScaler()
 
 # Training loop
 optimizer = optim.AdamW(model.parameters(), lr=1e-4)
@@ -92,14 +101,19 @@ for epoch in range(10):
         tgt_y = src[:, 1:].to(device)
         
         optimizer.zero_grad()
-        output = model(src, tgt)
-        loss = criterion(output.view(-1, vocab_size), tgt_y.view(-1))
-        loss.backward()
-
+        
+        with autocast():
+            output = model(src, tgt)
+            loss = criterion(output.view(-1, vocab_size), tgt_y.view(-1))
+        
+        scaler.scale(loss).backward()
+        
         # Gradient clipping
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         
-        optimizer.step()
+        scaler.step(optimizer)
+        scaler.update()
+        
         total_loss += loss.item()
 
         if batch_idx % 10 == 0:  # Adjusted logging frequency
