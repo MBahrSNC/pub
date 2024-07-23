@@ -9,14 +9,14 @@ from torch.cuda.amp import autocast, GradScaler
 from torch.utils.checkpoint import checkpoint
 
 # Device configuration
-device = torch.device('cuda' if torch.cuda.is_available() else 'gpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Initialize tokenizer and set padding token
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 tokenizer.pad_token = tokenizer.eos_token
 
 # Load the PersonaHub dataset
-persona_dataset = load_dataset("proj-persona/PersonaHub", "instruction")
+persona_dataset = load_dataset("proj-persona/PersonaHub")
 
 class PersonaDataset(Dataset):
     def __init__(self, dataset, tokenizer, max_length):
@@ -85,11 +85,11 @@ os.makedirs("moki", exist_ok=True)
 
 # Example hyperparameters for a 1B parameter model
 vocab_size = len(tokenizer)
-d_model = 1024  # Reduced model dimension for larger context handling
-nhead = 16  # Reduced number of heads
-num_encoder_layers = 12  # Reduced number of layers
-num_decoder_layers = 12  # Reduced number of layers
-dim_feedforward = 4096  # Reduced feedforward dimension
+d_model = 512  # Further reduce model dimension for testing
+nhead = 8  # Further reduce number of heads
+num_encoder_layers = 6  # Further reduce number of layers
+num_decoder_layers = 6  # Further reduce number of layers
+dim_feedforward = 2048  # Further reduce feedforward dimension
 
 model = MokiTransformer(vocab_size, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward).to(device)
 
