@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,7 +10,7 @@ from datasets import load_dataset
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 
 # Load the PersonaHub dataset
-persona_dataset = load_dataset("proj-persona/PersonaHub")
+persona_dataset = load_dataset("proj-persona/PersonaHub", "instruction")
 
 class PersonaDataset(Dataset):
     def __init__(self, dataset, tokenizer, max_length):
