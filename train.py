@@ -6,6 +6,9 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import GPT2Tokenizer
 from datasets import load_dataset
 
+# Device configuration
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 # Initialize tokenizer
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 
@@ -28,7 +31,7 @@ class PersonaDataset(Dataset):
         return torch.tensor(inputs)
 
 # Parameters
-max_seq_length = 128000  # Setting sequence length to 128k tokens for this example
+max_seq_length = 128000  # Set sequence length to 128k tokens
 batch_size = 1  # Reduced batch size due to large sequence length
 
 # Create PersonaHub dataset
