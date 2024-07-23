@@ -9,8 +9,9 @@ from datasets import load_dataset
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Initialize tokenizer
+# Initialize tokenizer and set padding token
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+tokenizer.pad_token = tokenizer.eos_token
 
 # Load the PersonaHub dataset
 persona_dataset = load_dataset("proj-persona/PersonaHub", "instruction")
@@ -26,7 +27,8 @@ class PersonaDataset(Dataset):
 
     def __getitem__(self, idx):
         data_point = self.dataset[idx]
-        input_text = data_point["input persona"] + " " + data_point["synthesized text"]
+        # Assuming the structure based on common Persona datasets
+        input_text = " ".join(data_point["history"]) + " " + data_point["utterances"][-1]['text']
         inputs = self.tokenizer.encode(input_text, truncation=True, max_length=self.max_length, padding='max_length')
         return torch.tensor(inputs)
 
