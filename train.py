@@ -80,8 +80,8 @@ def train_model(model, dataloader, tokenizer):  # Add tokenizer as argument
         # Save best model based on loss
         if avg_loss < best_loss:
             best_loss = avg_loss
-            model.save_pretrained("best_fine_tuned_stablelm_model")
-            tokenizer.save_pretrained("best_fine_tuned_stablelm_model")  # Save the tokenizer as well
+            model.save_pretrained("mini-llm2")
+            tokenizer.save_pretrained("mini-llm2")  # Save the tokenizer as well
 
 def main():
     model, tokenizer = load_model_and_tokenizer()
