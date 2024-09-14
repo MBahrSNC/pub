@@ -43,7 +43,7 @@ def tokenize_dataset(dataset, tokenizer):
     def tokenize_function(examples):
         return tokenizer(examples["chat"], padding="max_length", truncation=True, max_length=512)
     
-    tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["prompt"])
+    tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["chat"])
     tokenized_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask'])
     return tokenized_dataset
 
