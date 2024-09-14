@@ -7,7 +7,7 @@ from torch.cuda.amp import GradScaler, autocast
 
 # Constants
 MODEL_NAME = "stabilityai/stablelm-2-zephyr-1_6b"  # Hugging Face model name
-DATASET_NAME = "fka/awesome-chatgpt-prompts"        # Dataset name
+DATASET_NAME = "glaiveai/glaive-function-calling-v2"        # Dataset name
 BATCH_SIZE = 8
 LEARNING_RATE = 5e-5
 EPOCHS = 3
@@ -41,7 +41,7 @@ def load_model_and_tokenizer():
 
 def tokenize_dataset(dataset, tokenizer):
     def tokenize_function(examples):
-        return tokenizer(examples["prompt"], padding="max_length", truncation=True, max_length=512)
+        return tokenizer(examples["chat"], padding="max_length", truncation=True, max_length=512)
     
     tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["prompt"])
     tokenized_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask'])
