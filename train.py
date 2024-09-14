@@ -7,7 +7,7 @@ from torch.cuda.amp import GradScaler, autocast
 
 # Constants
 MODEL_NAME = "stabilityai/stablelm-2-zephyr-1_6b"  # Replace with the actual Hugging Face model name
-DATASET_NAME = "mbahrsnc/fluent"    # Replace with the actual dataset name from Hugging Face
+DATASET_NAME = "fka/awesome-chatgpt-prompts"    # Replace with the actual dataset name from Hugging Face
 BATCH_SIZE = 8
 LEARNING_RATE = 5e-5
 EPOCHS = 3
