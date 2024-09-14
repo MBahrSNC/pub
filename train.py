@@ -6,8 +6,8 @@ from torch.optim import AdamW
 from torch.cuda.amp import GradScaler, autocast
 
 # Constants
-MODEL_NAME = "stabilityai/stablelm-2-zephyr-1_6b"  # Replace with the actual Hugging Face model name
-DATASET_NAME = "fka/awesome-chatgpt-prompts"    # Replace with the actual dataset name from Hugging Face
+MODEL_NAME = "stabilityai/stablelm-2-zephyr-1_6b"  # Hugging Face model name
+DATASET_NAME = "fka/awesome-chatgpt-prompts"        # Dataset name
 BATCH_SIZE = 8
 LEARNING_RATE = 5e-5
 EPOCHS = 3
@@ -18,22 +18,23 @@ def load_model_and_tokenizer():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
-    # Freeze all layers first
-    for param in model.parameters():
-        param.requires_grad = False
+    # Do not assume a specific architecture like embeddings or base_model
+    # Instead, freeze the first few layers based on available layers
 
-    # Find and unfreeze specific layers based on model architecture
-    # Try to access the correct attribute based on model structure
-    if hasattr(model, 'transformer'):  # Common for GPT-style models
-        for param in model.transformer.h[-2:].parameters():  # Adjust number of layers to unfreeze
-            param.requires_grad = True
-    elif hasattr(model, 'model'):  # Some models use 'model' to encapsulate transformer layers
-        for param in model.model.layers[-2:].parameters():  # Adjust number of layers to unfreeze
-            param.requires_grad = True
+    # Check for layers in the transformer or model
+    if hasattr(model, 'transformer'):
+        print("Freezing first layers of model.transformer")
+        for param in model.transformer.h[:6].parameters():  # Freeze first 6 layers
+            param.requires_grad = False
+    elif hasattr(model, 'model'):
+        print("Freezing first layers of model.model")
+        for param in model.model.layers[:6].parameters():  # Freeze first 6 layers
+            param.requires_grad = False
     else:
-        # Fallback: unfreeze the last few layers directly from the model parameters
-        for param in list(model.parameters())[-200:]:  # Adjust the number of parameters you want to unfreeze
-            param.requires_grad = True
+        print("Freezing last 200 parameters as a fallback")
+        # Fallback: freeze last few parameters if structure is unknown
+        for param in list(model.parameters())[-200:]:
+            param.requires_grad = False
 
     model.resize_token_embeddings(len(tokenizer))
     return model.to(DEVICE), tokenizer
@@ -42,14 +43,14 @@ def tokenize_dataset(dataset, tokenizer):
     def tokenize_function(examples):
         return tokenizer(examples["prompt"], padding="max_length", truncation=True, max_length=512)
     
-    tokenized_dataset = dataset.map(tokenize_function, batched=True)
+    tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["prompt"])
     tokenized_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask'])
     return tokenized_dataset
 
 def create_dataloader(tokenized_dataset):
     return DataLoader(tokenized_dataset['train'], batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
 
-def train_model(model, dataloader):
+def train_model(model, dataloader, tokenizer):  # Add tokenizer as argument
     optimizer = AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=LEARNING_RATE)
     scaler = GradScaler()
     model.train()
@@ -80,14 +81,14 @@ def train_model(model, dataloader):
         if avg_loss < best_loss:
             best_loss = avg_loss
             model.save_pretrained("best_fine_tuned_stablelm_model")
-            tokenizer.save_pretrained("best_fine_tuned_stablelm_model")
+            tokenizer.save_pretrained("best_fine_tuned_stablelm_model")  # Save the tokenizer as well
 
 def main():
     model, tokenizer = load_model_and_tokenizer()
     dataset = load_dataset(DATASET_NAME)
     tokenized_dataset = tokenize_dataset(dataset, tokenizer)
     train_dataloader = create_dataloader(tokenized_dataset)
-    train_model(model, train_dataloader)
+    train_model(model, train_dataloader, tokenizer)  # Pass tokenizer to train_model
 
 if __name__ == "__main__":
     main()
